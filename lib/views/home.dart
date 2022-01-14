@@ -12,99 +12,122 @@ class Home extends StatefulWidget {
 }
 
 class _HomeState extends State<Home> {
-
   bool isSearching = false;
-  TextEditingController searchUsernameEditingController = TextEditingController();  
-  String myName = "",myProfilePic = "", myUserName = "", myEmail = "";
-  late Stream chatRoomStream;
-  late Stream userStream;
+  bool isIntializate = false;
+  bool hasData_ = false;
+  String myName = "", myProfilePic = "", myUserName = "", myEmail = "";
+  late AsyncSnapshot snapshot_;
+  late Stream usersStream, chatRoomsStream;
 
-  @override
-  void initState(){
-    onScreenLoaded();
-    super.initState();
-  }
+  TextEditingController searchUsernameEditingController =
+      TextEditingController();
 
-   getMyInfoFromSharedPreference() async{
+  getMyInfoFromSharedPreference() async {
     myName = (await SharedPreferenceHelper().getDisplayName())!;
     myProfilePic = (await SharedPreferenceHelper().getUserProfileUrl())!;
     myUserName = (await SharedPreferenceHelper().getUserName())!;
-    myEmail = (await SharedPreferenceHelper().getUserEmail())!;    
+    myEmail = (await SharedPreferenceHelper().getUserEmail())!;
     setState(() {});
-  }  
-
-    onSearchBtnClick() async {
-    isSearching = true;
-    setState(() {});  
-
-     userStream = await FirebaseFirestore.instance.collection("users").where("username",isEqualTo: searchUsernameEditingController.text).snapshots();
-     setState(() {});  
   }
 
-   getChatRoomIdByUsernames(String a,String b){
-    if(a.substring(0,1).codeUnitAt(0) >  b.substring(0,1).codeUnitAt(0)){
+  getChatRoomIdByUsernames(String a, String b) {
+    if (a.substring(0, 1).codeUnitAt(0) > b.substring(0, 1).codeUnitAt(0)) {
       return "$b\_$a";
-    }
-    else{
+    } else {
       return "$a\_$b";
     }
   }
 
-  getChatRooms() async
+  onSearchBtnClick() async {
+    isSearching = true;
+    setState(() {});
+    usersStream = await DatabaseMethods()
+        .getUserByUserName(searchUsernameEditingController.text);
+
+    setState(() {});
+  }
+
+  ValidateSnapShot(AsyncSnapshot snapshot) async
   {
-    chatRoomStream = await DatabaseMethods().getChatRooms();
-    setState(() {      
-    });
+     if(snapshot.hasData) {
+          hasData_ = true;
+          snapshot_ = snapshot;
+        setState(() {});
+        }
   }
 
-  onScreenLoaded() async {
-    await getMyInfoFromSharedPreference();
-    getChatRooms();
-  }
+  Widget chatRoomsList() {
+    return StreamBuilder(
+      stream: chatRoomsStream,
+      builder: (BuildContext context, AsyncSnapshot snapshot) {
 
-  Widget searchListUserTitle({required String profileUrl, name, username, email}){
-    return GestureDetector(
-      onTap: (){        
-        var chatRoomId = getChatRoomIdByUsernames(myUserName, username);
-        Map<String,dynamic> chatRoomInfoMap = {
-          "users": [myUserName,username],
-          "lastMessage" : " ",
-          "lastMessageSendBy": " ",
-          "lastMessageSendTs": " "
-        };
+        ValidateSnapShot(snapshot);              
+        bool _hasData = (snapshot.hasData &&  hasData_) ? true : 
+        (!snapshot.hasData &&  hasData_) ? true : (snapshot.hasData &&  !hasData_) ? true : false;       
 
-        DatabaseMethods().createChatRoom(chatRoomId, chatRoomInfoMap);
-        Navigator.push(context, MaterialPageRoute(builder: (context) => ChatScreen(username,name)));
+        return _hasData
+            ? ListView.builder(
+                itemCount: snapshot_.data.docs.length,
+                shrinkWrap: true,
+                itemBuilder: (context, index) {
+                  DocumentSnapshot ds = snapshot_.data.docs[index];
+                  return ChatRoomListTile(ds["lastMessage"], ds.id, myUserName);
+                })
+            : Center(child: CircularProgressIndicator());
       },
-      child: Row(children: [
-        ClipRRect(borderRadius: BorderRadius.circular(40),child: Image.network(profileUrl,width: 40,height: 40,)),
-        SizedBox(width: 12,),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-          Text(name),
-          Text(email)
-        ],)
-      ],),
     );
   }
 
-   Widget searchUsersList() {
+  Widget searchListUserTile({required String profileUrl, name, username, email}) {
+    return GestureDetector(
+      onTap: () {
+        var chatRoomId = getChatRoomIdByUsernames(myUserName, username);
+        Map<String, dynamic> chatRoomInfoMap = {
+          "users": [myUserName, username]
+        };
+        DatabaseMethods().createChatRoom(chatRoomId, chatRoomInfoMap);
+        Navigator.push(
+            context,
+            MaterialPageRoute(
+                builder: (context) => ChatScreen(username, name)));
+      },
+      child: Container(
+        margin: EdgeInsets.symmetric(vertical: 8),
+        child: Row(
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(40),
+              child: Image.network(
+                profileUrl,
+                height: 40,
+                width: 40,
+              ),
+            ),
+            SizedBox(width: 12),
+            Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [Text(name), Text(email)])
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget searchUsersList() {
     return StreamBuilder(
-      stream: userStream,
-      builder: (BuildContext context, AsyncSnapshot snapshot) {                              
+      stream: usersStream,
+      builder: (BuildContext context, AsyncSnapshot snapshot) {
         return snapshot.hasData
             ? ListView.builder(
                 itemCount: snapshot.data.docs.length,
                 shrinkWrap: true,
                 itemBuilder: (context, index) {
                   DocumentSnapshot ds = snapshot.data.docs[index];
-                  return searchListUserTitle(                    
-                    profileUrl: ds["imgUrl"],
+                  return searchListUserTile(
+                      profileUrl: ds["imgUrl"],
                       name: ds["name"],
                       email: ds["email"],
-                      username: ds["username"]
-                    );
+                      username: ds["username"]);
                 },
               )
             : Center(
@@ -113,81 +136,170 @@ class _HomeState extends State<Home> {
       },
     );
   }
-  
 
-  Widget chatRoomsList(){
-    return StreamBuilder(
-      stream: chatRoomStream,
-      builder: (BuildContext context, AsyncSnapshot snapshot){
-        return snapshot.hasData ? ListView.builder(
-          itemCount: snapshot.data.docs.length,
-          shrinkWrap: true,          
-          itemBuilder: (context,index){
-            DocumentSnapshot ds = snapshot.data.docs[index];
-            return Text(ds.id.replaceAll(myUserName, "").replaceAll("_", ""));
-          }
-        ) : Center(child: CircularProgressIndicator(),);
-      }
-    );
+  getChatRooms() async {
+    chatRoomsStream = await DatabaseMethods().getChatRooms();
+    setState(() {});
+
+    isIntializate = true;
+    setState(() {});    
   }
-  
+
+  onScreenLoaded() async {
+    await getMyInfoFromSharedPreference();
+    if(!isIntializate) {getChatRooms();}
+  }
 
   @override
-  Widget build(BuildContext context)
-  {
-    return Scaffold(
-      appBar: AppBar(title: 
-      Text("Messagle clone"),
-      actions: [InkWell(
-        onTap: (){AuthMethods().signOut().then((s) {
-          Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => SignIn() ));
-        } ); }
-        ,
-        child: Container(
-          child: Icon(Icons.exit_to_app),
-          padding: EdgeInsets.symmetric(horizontal: 16),
-          
-          ),
-      )],
-      ),
-      body: Container(
-        margin: EdgeInsets.symmetric(horizontal: 20),        
-        child: Column(children: [        
-        Row(
-          children: [
-            isSearching ?
-            GestureDetector(
-              onTap: () {setState(() {
-                isSearching = false;
-                searchUsernameEditingController.text = "";
-              });},
-              child: Padding(
-                padding: EdgeInsets.only(right: 12)
-                ,child: Icon(Icons.arrow_back)),
-            ) : Container(),            
-            Expanded(
-              child: Container(
-                margin: EdgeInsets.symmetric(vertical: 16),
-                padding: EdgeInsets.symmetric(horizontal: 16),
-                decoration: BoxDecoration(border: Border.all(color: Colors.black87,width: 1.0,style: BorderStyle.solid,),
-                borderRadius: BorderRadius.circular(20)          
-                ),
-                child: Row(children: [
-                Expanded(child: TextField(controller: searchUsernameEditingController,decoration: InputDecoration(border: InputBorder.none,hintText: "username"),)), 
-                GestureDetector(                  
-                  onTap: (){                    
-                    if(searchUsernameEditingController.text != ""){
-                      onSearchBtnClick();                   
-                    }                                        
-                  }
-                  ,child: Icon(Icons.search))],),
-              ),
-            ),
-          ],
-        ),
-        isSearching ? searchUsersList() : chatRoomsList()
-        ],),),
-    );
+  void initState() {
+    onScreenLoaded();
+    super.initState();
   }
 
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text("Messenger Clone"),
+        actions: [
+          InkWell(
+            onTap: () {
+              AuthMethods().signOut().then((s) {
+                Navigator.pushReplacement(
+                    context, MaterialPageRoute(builder: (context) => SignIn()));
+              });
+            },
+            child: Container(
+                padding: EdgeInsets.symmetric(horizontal: 16),
+                child: Icon(Icons.exit_to_app)),
+          )
+        ],
+      ),
+      body: Container(
+        margin: EdgeInsets.symmetric(horizontal: 20),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                isSearching
+                    ? GestureDetector(
+                        onTap: () {
+                          isSearching = false;
+                          searchUsernameEditingController.text = "";
+                          setState(() {});
+                        },
+                        child: Padding(
+                            padding: EdgeInsets.only(right: 12),
+                            child: Icon(Icons.arrow_back)),
+                      )
+                    : Container(),
+                Expanded(
+                  child: Container(
+                    margin: EdgeInsets.symmetric(vertical: 16),
+                    padding: EdgeInsets.symmetric(horizontal: 16),
+                    decoration: BoxDecoration(
+                        border: Border.all(
+                            color: Colors.grey,
+                            width: 1,
+                            style: BorderStyle.solid),
+                        borderRadius: BorderRadius.circular(24)),
+                    child: Row(
+                      children: [
+                        Expanded(
+                            child: TextField(
+                          controller: searchUsernameEditingController,
+                          decoration: InputDecoration(
+                              border: InputBorder.none, hintText: "username"),
+                        )),
+                        GestureDetector(
+                            onTap: () {
+                              if (searchUsernameEditingController.text != "") {
+                                onSearchBtnClick();
+                              }
+                            },
+                            child: Icon(Icons.search))
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            isSearching ? searchUsersList() : 
+            isIntializate ?
+            chatRoomsList() : Container() 
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class ChatRoomListTile extends StatefulWidget {
+  final String lastMessage, chatRoomId, myUsername;
+  ChatRoomListTile(this.lastMessage, this.chatRoomId, this.myUsername);
+
+  @override
+  _ChatRoomListTileState createState() => _ChatRoomListTileState();
+}
+
+class _ChatRoomListTileState extends State<ChatRoomListTile> {
+  String profilePicUrl = "", name = "", username = "";
+
+  getThisUserInfo() async {
+    username =
+        widget.chatRoomId.replaceAll(widget.myUsername, "").replaceAll("_", "");
+    QuerySnapshot querySnapshot = await DatabaseMethods().getUserInfo(username);
+    print(
+        "something bla bla ${querySnapshot.docs[0].id} ${querySnapshot.docs[0]["name"]}  ${querySnapshot.docs[0]["imgUrl"]}");
+    name = "${querySnapshot.docs[0]["name"]}";
+    profilePicUrl = "${querySnapshot.docs[0]["imgUrl"]}";
+    setState(() {});
+  }
+
+  @override
+  void initState() {
+    getThisUserInfo();
+    super.initState();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+            context,
+            MaterialPageRoute(
+                builder: (context) => ChatScreen(username, name)));
+      },
+      child: Container(
+        margin: EdgeInsets.symmetric(vertical: 8),
+        child: Row(
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(30),
+              child: 
+              profilePicUrl.length > 0 ?
+              Image.network(
+                profilePicUrl,
+                height: 40,
+                width: 40,
+              ) : CircularProgressIndicator(),
+            ),
+            SizedBox(width: 12),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  name,
+                  style: TextStyle(fontSize: 16),
+                ),
+                SizedBox(height: 3),
+                Text(widget.lastMessage)
+              ],
+            )
+          ],
+        ),
+      ),
+    );
+  }
 }
