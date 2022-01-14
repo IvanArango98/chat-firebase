@@ -1,3 +1,4 @@
+import 'package:chat_firebase/helperfunctions/shared_helper.dart';
 import 'package:chat_firebase/services/auth.dart';
 import 'package:chat_firebase/services/database.dart';
 import 'package:chat_firebase/views/chatscreen.dart';
@@ -17,11 +18,6 @@ class _HomeState extends State<Home> {
   bool isGetting = false;
   bool hasData_ = false;
   String myName = "", myProfilePic = "", myUserName = "", myEmail = "";
-  static String userIdKey = "USERIDKEY";
-  static String userNameKey = "USERNAMEKEY";
-  static String displayNameKey = "USERDISPLAYNAME";
-  static String userEmailKey = "USEREMAILKEY";
-  static String userProfilePicKey = "USERPROFILEKEY";
 
   late AsyncSnapshot snapshot_;
   late Stream usersStream, chatRoomsStream;
@@ -29,48 +25,12 @@ class _HomeState extends State<Home> {
   TextEditingController searchUsernameEditingController =
       TextEditingController();
 
-  _HomeState()  {
-     GetUserName().then((value) => setState(() {
-      myUserName = value;
-    }));
-
-    GetmyEmail().then((value) => setState(() {
-      myEmail = value;
-    }) );
-
-     GetName().then((value) => setState(() {
-      myName = value;
-    }));
-    
-     GetmyProfilePic().then((value) => setState(() {
-      myProfilePic = value;
-       isGetting = true;
-    }));
-
-  }
-
-  Future<String> GetmyEmail() async{
-  SharedPreferences prefs = await SharedPreferences.getInstance();
-  String myEmail_ = prefs.getString(userEmailKey).toString();   
-   return myEmail_;
-  }
-
-  Future<String> GetUserName() async{
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    String myUserName_ = prefs.getString(userNameKey).toString();   
-    return myUserName_;
-  }
-
-  Future<String> GetmyProfilePic() async{
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    String myProfilePic = prefs.getString(userProfilePicKey).toString();   
-    return myProfilePic;
-  }
-
-  Future<String> GetName() async{
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    String myName_ = prefs.getString(displayNameKey).toString();   
-    return myName_;
+  getMyInfoFromSharedPreference() async {
+    myName = (await SharedPreferenceHelper().getDisplayName())!;
+    myProfilePic = (await SharedPreferenceHelper().getUserProfileUrl())!;
+    myUserName = (await SharedPreferenceHelper().getUserName())!;
+    myEmail = (await SharedPreferenceHelper().getUserEmail())!;
+    setState(() {});
   }
 
   String getChatRoomIdByUsernames(String a, String b) {    
@@ -197,19 +157,17 @@ class _HomeState extends State<Home> {
     setState(() {});    
   }
 
-  onScreenLoaded() async {
-    if(isGetting)
-    {    
+    onScreenLoaded() async {
+    await getMyInfoFromSharedPreference();
     if(!isIntializate) {getChatRooms();}
-    }
   }
 
   @override
   void initState() {
-    _HomeState();
     onScreenLoaded();
     super.initState();
   }
+
 
   @override
   Widget build(BuildContext context) {

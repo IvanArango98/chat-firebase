@@ -66,7 +66,7 @@ class ChatScreen_ extends State<ChatScreen>{
           .addMessage(chatRoomId, messageId, messageInfoMap)
           .then((value)  {
         Map<String, dynamic> lastMessageInfoMap = {
-          "users": [myUserName,widget.chatWithUsername],
+          "users": [myUserName,widget.chatWithUsername,'Envía ${myUserName}'],
           "lastMessage": message.toString(),
           "lastMessageSendTs": lastMessageTs.toString(),
           "lastMessageSendBy": myUserName.toString()
@@ -107,7 +107,7 @@ class ChatScreen_ extends State<ChatScreen>{
           .addMessage(IdRoom, messageId_, messageInfoMap_)
           .then((value)  {
         Map<String, dynamic> lastMessageInfoMap = {
-          "users": [widget.chatWithUsername,myUserName,],
+          "users": [widget.chatWithUsername,myUserName,'Envía ${widget.chatWithUsername}'],
           "lastMessage": message.toString(),
           "lastMessageSendTs": lastMessageTs.toString(),
           "lastMessageSendBy": myUserName.toString()
