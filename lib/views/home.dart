@@ -30,12 +30,9 @@ class _HomeState extends State<Home> {
     setState(() {});
   }
 
-  getChatRoomIdByUsernames(String a, String b) {
-    if (a.substring(0, 1).codeUnitAt(0) > b.substring(0, 1).codeUnitAt(0)) {
-      return "$b\_$a";
-    } else {
-      return "$a\_$b";
-    }
+  String getChatRoomIdByUsernames(String a, String b) {
+    String res = a + "\_" + b;
+     return res;
   }
 
   onSearchBtnClick() async {
@@ -66,14 +63,15 @@ class _HomeState extends State<Home> {
         (!snapshot.hasData &&  hasData_) ? true : (snapshot.hasData &&  !hasData_) ? true : false;       
 
         return _hasData
-            ? ListView.builder(
+            ?  ListView.builder            
+            (
                 itemCount: snapshot_.data.docs.length,
                 shrinkWrap: true,
                 itemBuilder: (context, index) {
                   DocumentSnapshot ds = snapshot_.data.docs[index];
                   return ChatRoomListTile(ds["lastMessage"], ds.id, myUserName);
                 })
-            : Center(child: CircularProgressIndicator());
+            : Center(child: Text("Sin mensajes aún."));
       },
     );
   }
@@ -81,15 +79,24 @@ class _HomeState extends State<Home> {
   Widget searchListUserTile({required String profileUrl, name, username, email}) {
     return GestureDetector(
       onTap: () {
-        var chatRoomId = getChatRoomIdByUsernames(myUserName, username);
+        String chatRoomId = getChatRoomIdByUsernames(myUserName, username);
+        print('ID 1: $chatRoomId');
         Map<String, dynamic> chatRoomInfoMap = {
           "users": [myUserName, username]
         };
+        
+        String chatRoomId2 = getChatRoomIdByUsernames(username,myUserName);
+        print('ID 2: $chatRoomId2');
+        Map<String, dynamic> chatRoomInfoMap2 = {
+          "users": [username,myUserName]
+        };
+
         DatabaseMethods().createChatRoom(chatRoomId, chatRoomInfoMap);
+        DatabaseMethods().createChatRoom(chatRoomId2, chatRoomInfoMap2);
         Navigator.push(
             context,
             MaterialPageRoute(
-                builder: (context) => ChatScreen(username, name)));
+                builder: (context) => ChatScreen(username, name,profileUrl)));
       },
       child: Container(
         margin: EdgeInsets.symmetric(vertical: 8),
@@ -249,8 +256,6 @@ class _ChatRoomListTileState extends State<ChatRoomListTile> {
     username =
         widget.chatRoomId.replaceAll(widget.myUsername, "").replaceAll("_", "");
     QuerySnapshot querySnapshot = await DatabaseMethods().getUserInfo(username);
-    print(
-        "something bla bla ${querySnapshot.docs[0].id} ${querySnapshot.docs[0]["name"]}  ${querySnapshot.docs[0]["imgUrl"]}");
     name = "${querySnapshot.docs[0]["name"]}";
     profilePicUrl = "${querySnapshot.docs[0]["imgUrl"]}";
     setState(() {});
@@ -269,7 +274,7 @@ class _ChatRoomListTileState extends State<ChatRoomListTile> {
         Navigator.push(
             context,
             MaterialPageRoute(
-                builder: (context) => ChatScreen(username, name)));
+                builder: (context) => ChatScreen(username, name,profilePicUrl)));
       },
       child: Container(
         margin: EdgeInsets.symmetric(vertical: 8),

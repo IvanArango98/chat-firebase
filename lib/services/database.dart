@@ -29,7 +29,6 @@ class DatabaseMethods {
   }
 
  Future updateLastMessageSend(String chatRoomId, Map<String,dynamic> lastMessageInfoMap) async  {
-    print('SI SI ${chatRoomId} || ${lastMessageInfoMap}');
     return FirebaseFirestore.instance
         .collection("chatrooms")
         .doc(chatRoomId).update(lastMessageInfoMap);

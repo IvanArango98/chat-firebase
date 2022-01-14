@@ -3,11 +3,12 @@ import 'package:chat_firebase/services/database.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:random_string/random_string.dart';
+import 'package:intl/intl.dart';
 
 class ChatScreen extends StatefulWidget {
 
-  final String chatWithUsername,name;
-  ChatScreen(this.chatWithUsername,this.name);
+  final String chatWithUsername,name,ProfilePicture;
+  ChatScreen(this.chatWithUsername,this.name,this.ProfilePicture);
   @override
   ChatScreen_ createState() => ChatScreen_();  
 }
@@ -16,6 +17,7 @@ class ChatScreen_ extends State<ChatScreen>{
 
   String chatRoomId = "",messageId = "";
   String myName = "",myProfilePic = "", myUserName = "", myEmail = "";
+  bool isInitialized = false;
   TextEditingController messageTextEdittingController = TextEditingController();
   late Stream messageStream;
 
@@ -27,15 +29,15 @@ class ChatScreen_ extends State<ChatScreen>{
     chatRoomId = getChatRoomIdByUsernames(widget.chatWithUsername,myUserName);
   }
 
- getChatRoomIdByUsernames(String a, String b) {
-    if (a.substring(0, 1).codeUnitAt(0) > b.substring(0, 1).codeUnitAt(0)) {
-      return "$b\_$a";
-    } else {
-      return "$a\_$b";
-    }
+ String getChatRoomIdByUsernames(String a, String b) {
+    String res = a + "\_" + b;
+     return res;
   }
 
   getAndSetMessages() async {
+    isInitialized = true;
+    setState(() {      
+    });  
     messageStream = await DatabaseMethods().getChatRoomMessages(chatRoomId);
     setState(() {      
     });    
@@ -70,9 +72,10 @@ class ChatScreen_ extends State<ChatScreen>{
           "lastMessageSendBy": myUserName.toString()
         };
         
-        DatabaseMethods().updateLastMessageSend(getChatRoomIdByUsernames(myUserName,widget.chatWithUsername), lastMessageInfoMap).then((_) => print('Updated xd')).catchError((error) => print('Update xd failed: $error'));;
+        DatabaseMethods().updateLastMessageSend(getChatRoomIdByUsernames(myUserName,widget.chatWithUsername), lastMessageInfoMap).then((_) => print('Updated xd')).catchError((error) => print('Update xd failed: $error'));;        
 
         if (sendClicked) {
+          addAnotherMessage(message);
           // remove the text in the message input field
           messageTextEdittingController.text = "";
           // make message id blank to get regenerated on next message send
@@ -87,6 +90,34 @@ class ChatScreen_ extends State<ChatScreen>{
     getAndSetMessages();
   }
 
+  addAnotherMessage(String message)
+  {
+    String IdRoom = getChatRoomIdByUsernames(myUserName,widget.chatWithUsername);
+     var lastMessageTs = DateTime.now();
+     String messageId_ = randomAlphaNumeric(12);
+
+    Map<String, dynamic> messageInfoMap_ = {
+        "message": message,
+        "sendBy": myUserName,
+        "ts": lastMessageTs,
+        "imgUrl": myProfilePic
+      };
+
+      DatabaseMethods()
+          .addMessage(IdRoom, messageId_, messageInfoMap_)
+          .then((value)  {
+        Map<String, dynamic> lastMessageInfoMap = {
+          "users": [widget.chatWithUsername,myUserName,],
+          "lastMessage": message.toString(),
+          "lastMessageSendTs": lastMessageTs.toString(),
+          "lastMessageSendBy": myUserName.toString()
+        };
+        
+        DatabaseMethods().updateLastMessageSend(getChatRoomIdByUsernames(widget.chatWithUsername,myUserName), lastMessageInfoMap).then((_) => print('Updated xd')).catchError((error) => print('Update xd failed: $error'));;
+      });  
+
+  }
+
   @override
   void initState(){
     doThisOnLaunch();
@@ -97,13 +128,22 @@ class ChatScreen_ extends State<ChatScreen>{
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.name),
+      appBar: AppBar(        
+        title: Row(
+
+           mainAxisAlignment: MainAxisAlignment.start,           
+          children: [                    
+          ClipRRect(
+          borderRadius: BorderRadius.circular(20),child: Image.network(widget.ProfilePicture,width: 30,height: 30)),
+          SizedBox(width: 5,),
+          Text(widget.name,style: TextStyle(fontSize: 17),),
+        ],),          
       ),
       body: Container(
         child: Stack(
           children: [ 
-            chatMessages(),           
+            isInitialized ?
+            chatMessages() : Container(),           
             Container(
               alignment: Alignment.bottomCenter,
               child: Container(
@@ -120,7 +160,7 @@ class ChatScreen_ extends State<ChatScreen>{
                       style: TextStyle(color: Colors.white),
                       decoration: InputDecoration(
                           border: InputBorder.none,
-                          hintText: "type a message",
+                          hintText: "Escribe tu mensaje",
                           hintStyle:
                               TextStyle(color: Colors.white.withOpacity(0.6))),
                     )),
@@ -154,14 +194,16 @@ class ChatScreen_ extends State<ChatScreen>{
           reverse: true,
           itemBuilder: (context,index){
             DocumentSnapshot ds = snapshot.data.docs[index];
-            return chatMessageTitle(ds["message"],myUserName == ds["sendBy"] ? true : false);
+            return chatMessageTitle(ds["message"],myUserName == ds["sendBy"] ? true : false,ds["ts"]);
           },
         ) : Center(child:CircularProgressIndicator());
       }
     );
   }
 
-  Widget chatMessageTitle(String message,bool sendByMe){
+  Widget chatMessageTitle(String message,bool sendByMe,Timestamp hora){
+    DateTime enviado = DateTime.parse(hora.toDate().toString());
+    String formattedTime = DateFormat.Hm().format(enviado);
     return Row(
       mainAxisAlignment: sendByMe ? MainAxisAlignment.end : MainAxisAlignment.start,
       children: [
@@ -174,7 +216,11 @@ class ChatScreen_ extends State<ChatScreen>{
             bottomLeft: sendByMe ? Radius.circular(20) : Radius.circular(0)           
             ),color: Colors.blue),      
           padding: EdgeInsets.all(16),
-          child: Text(message,style: TextStyle(color: Colors.white),)
+          child: 
+          Column(children: [
+            Text(message,style: TextStyle(color: Colors.white),),
+            Text(formattedTime,style: TextStyle(color: Colors.white,fontSize: 10),)
+          ],)          
         ),
       ],
     );
