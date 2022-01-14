@@ -1,10 +1,10 @@
-import 'package:chat_firebase/helperfunctions/shared_helper.dart';
 import 'package:chat_firebase/services/auth.dart';
 import 'package:chat_firebase/services/database.dart';
 import 'package:chat_firebase/views/chatscreen.dart';
 import 'package:chat_firebase/views/signin.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class Home extends StatefulWidget {
   @override
@@ -14,26 +14,70 @@ class Home extends StatefulWidget {
 class _HomeState extends State<Home> {
   bool isSearching = false;
   bool isIntializate = false;
+  bool isGetting = false;
   bool hasData_ = false;
   String myName = "", myProfilePic = "", myUserName = "", myEmail = "";
+  static String userIdKey = "USERIDKEY";
+  static String userNameKey = "USERNAMEKEY";
+  static String displayNameKey = "USERDISPLAYNAME";
+  static String userEmailKey = "USEREMAILKEY";
+  static String userProfilePicKey = "USERPROFILEKEY";
+
   late AsyncSnapshot snapshot_;
   late Stream usersStream, chatRoomsStream;
 
   TextEditingController searchUsernameEditingController =
       TextEditingController();
 
-  getMyInfoFromSharedPreference() async {
-    myName = (await SharedPreferenceHelper().getDisplayName())!;
-    myProfilePic = (await SharedPreferenceHelper().getUserProfileUrl())!;
-    myUserName = (await SharedPreferenceHelper().getUserName())!;
-    myEmail = (await SharedPreferenceHelper().getUserEmail())!;
-    setState(() {});
+  _HomeState()  {
+     GetUserName().then((value) => setState(() {
+      myUserName = value;
+    }));
+
+    GetmyEmail().then((value) => setState(() {
+      myEmail = value;
+    }) );
+
+     GetName().then((value) => setState(() {
+      myName = value;
+    }));
+    
+     GetmyProfilePic().then((value) => setState(() {
+      myProfilePic = value;
+       isGetting = true;
+    }));
+
   }
 
-  String getChatRoomIdByUsernames(String a, String b) {
+  Future<String> GetmyEmail() async{
+  SharedPreferences prefs = await SharedPreferences.getInstance();
+  String myEmail_ = prefs.getString(userEmailKey).toString();   
+   return myEmail_;
+  }
+
+  Future<String> GetUserName() async{
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String myUserName_ = prefs.getString(userNameKey).toString();   
+    return myUserName_;
+  }
+
+  Future<String> GetmyProfilePic() async{
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String myProfilePic = prefs.getString(userProfilePicKey).toString();   
+    return myProfilePic;
+  }
+
+  Future<String> GetName() async{
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String myName_ = prefs.getString(displayNameKey).toString();   
+    return myName_;
+  }
+
+  String getChatRoomIdByUsernames(String a, String b) {    
     String res = a + "\_" + b;
      return res;
   }
+
 
   onSearchBtnClick() async {
     isSearching = true;
@@ -69,6 +113,7 @@ class _HomeState extends State<Home> {
                 shrinkWrap: true,
                 itemBuilder: (context, index) {
                   DocumentSnapshot ds = snapshot_.data.docs[index];
+                  print('AQUI $ds');
                   return ChatRoomListTile(ds["lastMessage"], ds.id, myUserName);
                 })
             : Center(child: Text("Sin mensajes aún."));
@@ -82,13 +127,13 @@ class _HomeState extends State<Home> {
         String chatRoomId = getChatRoomIdByUsernames(myUserName, username);
         print('ID 1: $chatRoomId');
         Map<String, dynamic> chatRoomInfoMap = {
-          "users": [myUserName, username]
+          "users": [myUserName, username,'Envía $myUserName']
         };
         
         String chatRoomId2 = getChatRoomIdByUsernames(username,myUserName);
         print('ID 2: $chatRoomId2');
         Map<String, dynamic> chatRoomInfoMap2 = {
-          "users": [username,myUserName]
+          "users": [username,myUserName,'Envía $username']
         };
 
         DatabaseMethods().createChatRoom(chatRoomId, chatRoomInfoMap);
@@ -145,7 +190,7 @@ class _HomeState extends State<Home> {
   }
 
   getChatRooms() async {
-    chatRoomsStream = await DatabaseMethods().getChatRooms();
+    chatRoomsStream = await DatabaseMethods().getChatRooms(this.myUserName);
     setState(() {});
 
     isIntializate = true;
@@ -153,12 +198,15 @@ class _HomeState extends State<Home> {
   }
 
   onScreenLoaded() async {
-    await getMyInfoFromSharedPreference();
+    if(isGetting)
+    {    
     if(!isIntializate) {getChatRooms();}
+    }
   }
 
   @override
   void initState() {
+    _HomeState();
     onScreenLoaded();
     super.initState();
   }
@@ -167,7 +215,7 @@ class _HomeState extends State<Home> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text("Messenger Clone"),
+        title: Text('Bienvenido $myUserName'),
         actions: [
           InkWell(
             onTap: () {

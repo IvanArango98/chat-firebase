@@ -1,4 +1,3 @@
-import 'package:chat_firebase/helperfunctions/shared_helper.dart';
 import 'package:chat_firebase/services/database.dart';
 import 'package:chat_firebase/views/home.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -8,6 +7,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class AuthMethods {
   final FirebaseAuth auth = FirebaseAuth.instance;
+    static String userIdKey = "USERIDKEY";
+  static String userNameKey = "USERNAMEKEY";
+  static String displayNameKey = "USERDISPLAYNAME";
+  static String userEmailKey = "USEREMAILKEY";
+  static String userProfilePicKey = "USERPROFILEKEY";
 
   getCurrentUser() async {
     return await auth.currentUser;
@@ -34,12 +38,21 @@ class AuthMethods {
 
     User? userDetails = result.user;
 
-    if (result != null) {
-      SharedPreferenceHelper().saveUserEmail(userDetails!.email.toString());
-      SharedPreferenceHelper().saveUserId(userDetails.uid.toString());
-      SharedPreferenceHelper().saveUserName(userDetails.email.toString().substring(0,userDetails.email.toString().indexOf("@")));
-      SharedPreferenceHelper().saveDisplayName(userDetails.displayName.toString());
-      SharedPreferenceHelper().saveUserProfileUrl(userDetails.photoURL.toString());
+    if (result != null) { 
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+
+    //id
+      prefs.setString(userIdKey, userDetails!.uid.toString());
+
+      //mail         
+      prefs.setString(userEmailKey, userDetails.email.toString());
+
+        //username
+       prefs.setString(userNameKey, userDetails.email.toString().substring(0,userDetails.email.toString().indexOf("@")));
+
+       prefs.setString(displayNameKey, userDetails.displayName.toString());
+      
+      prefs.setString(userProfilePicKey, userDetails.photoURL.toString());
 
       Map<String, dynamic> userInfoMap = {
         "email": userDetails.email,
