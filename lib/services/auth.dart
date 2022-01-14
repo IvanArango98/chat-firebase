@@ -37,8 +37,7 @@ class AuthMethods {
     if (result != null) {
       SharedPreferenceHelper().saveUserEmail(userDetails!.email.toString());
       SharedPreferenceHelper().saveUserId(userDetails.uid.toString());
-      SharedPreferenceHelper()
-          .saveUserName(userDetails.email.toString().substring(0,userDetails.email.toString().indexOf("@")));
+      SharedPreferenceHelper().saveUserName(userDetails.email.toString().substring(0,userDetails.email.toString().indexOf("@")));
       SharedPreferenceHelper().saveDisplayName(userDetails.displayName.toString());
       SharedPreferenceHelper().saveUserProfileUrl(userDetails.photoURL.toString());
 

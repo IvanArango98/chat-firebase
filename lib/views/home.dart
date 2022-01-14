@@ -16,13 +16,14 @@ class _HomeState extends State<Home> {
   bool isSearching = false;
   TextEditingController searchUsernameEditingController = TextEditingController();  
   String myName = "",myProfilePic = "", myUserName = "", myEmail = "";
+  late Stream chatRoomStream;
+  late Stream userStream;
 
   @override
   void initState(){
-    getMyInfoFromSharedPreference();
+    onScreenLoaded();
     super.initState();
   }
-  
 
    getMyInfoFromSharedPreference() async{
     myName = (await SharedPreferenceHelper().getDisplayName())!;
@@ -35,6 +36,9 @@ class _HomeState extends State<Home> {
     onSearchBtnClick() async {
     isSearching = true;
     setState(() {});  
+
+     userStream = await FirebaseFirestore.instance.collection("users").where("username",isEqualTo: searchUsernameEditingController.text).snapshots();
+     setState(() {});  
   }
 
    getChatRoomIdByUsernames(String a,String b){
@@ -46,13 +50,27 @@ class _HomeState extends State<Home> {
     }
   }
 
-  Widget searchListUserTitle({required String profileUrl,name,username,email}){
+  getChatRooms() async
+  {
+    chatRoomStream = await DatabaseMethods().getChatRooms();
+    setState(() {      
+    });
+  }
+
+  onScreenLoaded() async {
+    await getMyInfoFromSharedPreference();
+    getChatRooms();
+  }
+
+  Widget searchListUserTitle({required String profileUrl, name, username, email}){
     return GestureDetector(
-      onTap: (){
-        print('this is the value we have haha $myUserName || $username');
+      onTap: (){        
         var chatRoomId = getChatRoomIdByUsernames(myUserName, username);
         Map<String,dynamic> chatRoomInfoMap = {
-          "users": [myUserName,username]
+          "users": [myUserName,username],
+          "lastMessage" : " ",
+          "lastMessageSendBy": " ",
+          "lastMessageSendTs": " "
         };
 
         DatabaseMethods().createChatRoom(chatRoomId, chatRoomInfoMap);
@@ -73,7 +91,7 @@ class _HomeState extends State<Home> {
 
    Widget searchUsersList() {
     return StreamBuilder(
-      stream: FirebaseFirestore.instance.collection("users").where("username",isEqualTo: searchUsernameEditingController.text).snapshots(),
+      stream: userStream,
       builder: (BuildContext context, AsyncSnapshot snapshot) {                              
         return snapshot.hasData
             ? ListView.builder(
@@ -82,7 +100,11 @@ class _HomeState extends State<Home> {
                 itemBuilder: (context, index) {
                   DocumentSnapshot ds = snapshot.data.docs[index];
                   return searchListUserTitle(                    
-                    profileUrl : ds["imgUrl"].toString(),name : ds["name"].toString(),username: ds["username"].toString(),email : ds["email"].toString());
+                    profileUrl: ds["imgUrl"],
+                      name: ds["name"],
+                      email: ds["email"],
+                      username: ds["username"]
+                    );
                 },
               )
             : Center(
@@ -94,8 +116,21 @@ class _HomeState extends State<Home> {
   
 
   Widget chatRoomsList(){
-    return Container();
+    return StreamBuilder(
+      stream: chatRoomStream,
+      builder: (BuildContext context, AsyncSnapshot snapshot){
+        return snapshot.hasData ? ListView.builder(
+          itemCount: snapshot.data.docs.length,
+          shrinkWrap: true,          
+          itemBuilder: (context,index){
+            DocumentSnapshot ds = snapshot.data.docs[index];
+            return Text(ds.id.replaceAll(myUserName, "").replaceAll("_", ""));
+          }
+        ) : Center(child: CircularProgressIndicator(),);
+      }
+    );
   }
+  
 
   @override
   Widget build(BuildContext context)
