@@ -1,5 +1,6 @@
 import 'package:chat_firebase/helperfunctions/shared_helper.dart';
 import 'package:chat_firebase/services/database.dart';
+import 'package:chat_firebase/views/home.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:random_string/random_string.dart';
@@ -123,14 +124,17 @@ class ChatScreen_ extends State<ChatScreen>{
     doThisOnLaunch();
     super.initState();
   }
-
  
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(        
+      appBar: AppBar(   
+          leading: IconButton(
+    icon: Icon(Icons.arrow_back, color: Colors.white),
+    onPressed: () => Navigator.pushReplacement(
+            context, MaterialPageRoute(builder: (context) => Home())),
+        ),      
         title: Row(
-
            mainAxisAlignment: MainAxisAlignment.start,           
           children: [                    
           ClipRRect(
@@ -192,6 +196,7 @@ class ChatScreen_ extends State<ChatScreen>{
           padding: EdgeInsets.only(bottom: 70),
           itemCount: snapshot.data.docs.length,
           reverse: true,
+          //physics: NeverScrollableScrollPhysics(),
           itemBuilder: (context,index){
             DocumentSnapshot ds = snapshot.data.docs[index];
             return chatMessageTitle(ds["message"],myUserName == ds["sendBy"] ? true : false,ds["ts"]);
@@ -201,29 +206,32 @@ class ChatScreen_ extends State<ChatScreen>{
     );
   }
 
-  Widget chatMessageTitle(String message,bool sendByMe,Timestamp hora){
-    DateTime enviado = DateTime.parse(hora.toDate().toString());
-    String formattedTime = DateFormat.Hm().format(enviado);
+  Widget chatMessageTitle(String message,bool sendByMe,Timestamp hora){    
+      DateTime enviado = DateTime.parse(hora.toDate().toString());
+    String formattedTime = DateFormat.jm().format(enviado);
     return Row(
-      mainAxisAlignment: sendByMe ? MainAxisAlignment.end : MainAxisAlignment.start,
+      mainAxisAlignment: sendByMe ? MainAxisAlignment.end : MainAxisAlignment.start,      
       children: [
-        Container(      
+        Container( 
+          constraints: BoxConstraints(minWidth: 0, maxWidth: 300),                         
           margin: EdgeInsets.symmetric(horizontal: 16,vertical: 4),
           decoration: BoxDecoration(borderRadius: BorderRadius.only(
             topLeft: Radius.circular(20),
             bottomRight: sendByMe ? Radius.circular(0) : Radius.circular(20),
             topRight: Radius.circular(20),
             bottomLeft: sendByMe ? Radius.circular(20) : Radius.circular(0)           
-            ),color: Colors.blue),      
+            ),color: sendByMe ? Colors.blue : Colors.blueGrey),      
           padding: EdgeInsets.all(16),
           child: 
-          Column(children: [
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end
+            ,children: [
             Text(message,style: TextStyle(color: Colors.white),),
-            Text(formattedTime,style: TextStyle(color: Colors.white,fontSize: 10),)
+            Text(formattedTime,style: TextStyle(color: Colors.white,fontSize:9),)                               
           ],)          
         ),
       ],
     );
-  }
+  }  
 
 }

@@ -5,6 +5,7 @@ import 'package:chat_firebase/views/chatscreen.dart';
 import 'package:chat_firebase/views/signin.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class Home extends StatefulWidget {
@@ -74,7 +75,7 @@ class _HomeState extends State<Home> {
                 itemBuilder: (context, index) {
                   DocumentSnapshot ds = snapshot_.data.docs[index];
                   print('AQUI $ds');
-                  return ChatRoomListTile(ds["lastMessage"], ds.id, myUserName);
+                  return ChatRoomListTile(ds["lastMessage"], ds.id, myUserName,ds["lastMessageSendTs"]);
                 })
             : Center(child: Text("Sin mensajes aún."));
       },
@@ -143,7 +144,8 @@ class _HomeState extends State<Home> {
                 },
               )
             : Center(
-                child: CircularProgressIndicator(),
+              child: Text("No se ha encontrado ningún usuario.")
+                //child: CircularProgressIndicator(),
               );
       },
     );
@@ -173,7 +175,7 @@ class _HomeState extends State<Home> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Bienvenido $myUserName'),
+        title: Text('Bienvenido ${this.myName}'),
         actions: [
           InkWell(
             onTap: () {
@@ -222,7 +224,7 @@ class _HomeState extends State<Home> {
                             child: TextField(
                           controller: searchUsernameEditingController,
                           decoration: InputDecoration(
-                              border: InputBorder.none, hintText: "username"),
+                              border: InputBorder.none, hintText: "buscar usuario"),
                         )),
                         GestureDetector(
                             onTap: () {
@@ -249,7 +251,8 @@ class _HomeState extends State<Home> {
 
 class ChatRoomListTile extends StatefulWidget {
   final String lastMessage, chatRoomId, myUsername;
-  ChatRoomListTile(this.lastMessage, this.chatRoomId, this.myUsername);
+  String hora;
+  ChatRoomListTile(this.lastMessage, this.chatRoomId, this.myUsername,this.hora);
 
   @override
   _ChatRoomListTileState createState() => _ChatRoomListTileState();
@@ -275,6 +278,11 @@ class _ChatRoomListTileState extends State<ChatRoomListTile> {
 
   @override
   Widget build(BuildContext context) {
+
+    DateTime enviado = DateTime.parse(widget.hora.toString());
+    String formattedTime = DateFormat.jm().format(enviado);
+    String fecha = DateFormat.MEd().format(enviado);
+    
     return GestureDetector(
       onTap: () {
         Navigator.push(
@@ -283,9 +291,16 @@ class _ChatRoomListTileState extends State<ChatRoomListTile> {
                 builder: (context) => ChatScreen(username, name,profilePicUrl)));
       },
       child: Container(
+        decoration: BoxDecoration(
+            color: Colors.white10,
+             border: Border.all(
+              color: Colors.blue, width: 10,),
+              borderRadius: BorderRadius.circular(12),
+        ),
         margin: EdgeInsets.symmetric(vertical: 8),
         child: Row(
           children: [
+            SizedBox(width: 10,),
             ClipRRect(
               borderRadius: BorderRadius.circular(30),
               child: 
@@ -302,15 +317,40 @@ class _ChatRoomListTileState extends State<ChatRoomListTile> {
               children: [
                 Text(
                   name,
-                  style: TextStyle(fontSize: 16),
+                  style: TextStyle(fontSize: 16,fontWeight: FontWeight.w500),
                 ),
                 SizedBox(height: 3),
-                Text(widget.lastMessage)
+                Row(
+                  children: [
+                      Icon(Icons.send_to_mobile,color: Colors.greenAccent,size: 15,),
+                      SizedBox(width: 5), 
+                      Text(MessageCut(widget.lastMessage)),     
+                  ],
+                ),                       
+                SizedBox(height: 3),   
+                Row(
+                  children: [
+                    Icon(Icons.timelapse,size: 15,),
+                    SizedBox(width: 5), 
+                    Text(fecha),
+                    SizedBox(width: 5), 
+                    Text(formattedTime)
+                  ],
+                )  
               ],
             )
           ],
         ),
       ),
     );
+  }
+
+  String MessageCut(String lst)
+  {
+    String newMessage = "";
+    int index = lst.length > 30 ? 30 : lst.length;     
+    String adicional = index >= 30 ? "..." : ""; 
+    newMessage = lst.substring(0,index) + adicional;    
+    return newMessage;
   }
 }

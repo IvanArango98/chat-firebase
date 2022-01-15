@@ -11,7 +11,7 @@ class _SignInState extends State<SignIn> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text("Messenger Clone"),
+        title: Text("Messenger chingon"),
       ),
       body: Center(
         child: GestureDetector(
@@ -25,7 +25,7 @@ class _SignInState extends State<SignIn> {
             ),
             padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: Text(
-              "Sign In with Google",
+              "Registrarse con Google",
               style: TextStyle(fontSize: 16, color: Colors.white),
             ),
           ),
