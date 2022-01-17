@@ -5,6 +5,8 @@ import 'package:chat_firebase/views/chatscreen.dart';
 import 'package:chat_firebase/views/signin.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class Home extends StatefulWidget {
   @override
@@ -14,8 +16,10 @@ class Home extends StatefulWidget {
 class _HomeState extends State<Home> {
   bool isSearching = false;
   bool isIntializate = false;
+  bool isGetting = false;
   bool hasData_ = false;
   String myName = "", myProfilePic = "", myUserName = "", myEmail = "";
+
   late AsyncSnapshot snapshot_;
   late Stream usersStream, chatRoomsStream;
 
@@ -30,10 +34,11 @@ class _HomeState extends State<Home> {
     setState(() {});
   }
 
-  String getChatRoomIdByUsernames(String a, String b) {
+  String getChatRoomIdByUsernames(String a, String b) {    
     String res = a + "\_" + b;
      return res;
   }
+
 
   onSearchBtnClick() async {
     isSearching = true;
@@ -69,7 +74,8 @@ class _HomeState extends State<Home> {
                 shrinkWrap: true,
                 itemBuilder: (context, index) {
                   DocumentSnapshot ds = snapshot_.data.docs[index];
-                  return ChatRoomListTile(ds["lastMessage"], ds.id, myUserName);
+                  print('AQUI $ds');
+                  return ChatRoomListTile(ds["lastMessage"], ds.id, myUserName,ds["lastMessageSendTs"]);
                 })
             : Center(child: Text("Sin mensajes aún."));
       },
@@ -82,13 +88,13 @@ class _HomeState extends State<Home> {
         String chatRoomId = getChatRoomIdByUsernames(myUserName, username);
         print('ID 1: $chatRoomId');
         Map<String, dynamic> chatRoomInfoMap = {
-          "users": [myUserName, username]
+          "users": [myUserName, username,'Envía $myUserName']
         };
         
         String chatRoomId2 = getChatRoomIdByUsernames(username,myUserName);
         print('ID 2: $chatRoomId2');
         Map<String, dynamic> chatRoomInfoMap2 = {
-          "users": [username,myUserName]
+          "users": [username,myUserName,'Envía $username']
         };
 
         DatabaseMethods().createChatRoom(chatRoomId, chatRoomInfoMap);
@@ -138,21 +144,22 @@ class _HomeState extends State<Home> {
                 },
               )
             : Center(
-                child: CircularProgressIndicator(),
+              child: Text("No se ha encontrado ningún usuario.")
+                //child: CircularProgressIndicator(),
               );
       },
     );
   }
 
   getChatRooms() async {
-    chatRoomsStream = await DatabaseMethods().getChatRooms();
+    chatRoomsStream = await DatabaseMethods().getChatRooms(this.myUserName);
     setState(() {});
 
     isIntializate = true;
     setState(() {});    
   }
 
-  onScreenLoaded() async {
+    onScreenLoaded() async {
     await getMyInfoFromSharedPreference();
     if(!isIntializate) {getChatRooms();}
   }
@@ -163,11 +170,12 @@ class _HomeState extends State<Home> {
     super.initState();
   }
 
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text("Messenger Clone"),
+        title: Text('Bienvenido ${this.myName}'),
         actions: [
           InkWell(
             onTap: () {
@@ -216,7 +224,7 @@ class _HomeState extends State<Home> {
                             child: TextField(
                           controller: searchUsernameEditingController,
                           decoration: InputDecoration(
-                              border: InputBorder.none, hintText: "username"),
+                              border: InputBorder.none, hintText: "buscar usuario"),
                         )),
                         GestureDetector(
                             onTap: () {
@@ -243,7 +251,8 @@ class _HomeState extends State<Home> {
 
 class ChatRoomListTile extends StatefulWidget {
   final String lastMessage, chatRoomId, myUsername;
-  ChatRoomListTile(this.lastMessage, this.chatRoomId, this.myUsername);
+  String hora;
+  ChatRoomListTile(this.lastMessage, this.chatRoomId, this.myUsername,this.hora);
 
   @override
   _ChatRoomListTileState createState() => _ChatRoomListTileState();
@@ -269,6 +278,11 @@ class _ChatRoomListTileState extends State<ChatRoomListTile> {
 
   @override
   Widget build(BuildContext context) {
+
+    DateTime enviado = DateTime.parse(widget.hora.toString());
+    String formattedTime = DateFormat.jm().format(enviado);
+    String fecha = DateFormat.MEd().format(enviado);
+    
     return GestureDetector(
       onTap: () {
         Navigator.push(
@@ -277,9 +291,16 @@ class _ChatRoomListTileState extends State<ChatRoomListTile> {
                 builder: (context) => ChatScreen(username, name,profilePicUrl)));
       },
       child: Container(
+        decoration: BoxDecoration(
+            color: Colors.white10,
+             border: Border.all(
+              color: Colors.blue, width: 10,),
+              borderRadius: BorderRadius.circular(12),
+        ),
         margin: EdgeInsets.symmetric(vertical: 8),
         child: Row(
           children: [
+            SizedBox(width: 10,),
             ClipRRect(
               borderRadius: BorderRadius.circular(30),
               child: 
@@ -296,15 +317,40 @@ class _ChatRoomListTileState extends State<ChatRoomListTile> {
               children: [
                 Text(
                   name,
-                  style: TextStyle(fontSize: 16),
+                  style: TextStyle(fontSize: 16,fontWeight: FontWeight.w500),
                 ),
                 SizedBox(height: 3),
-                Text(widget.lastMessage)
+                Row(
+                  children: [
+                      Icon(Icons.send_to_mobile,color: Colors.greenAccent,size: 15,),
+                      SizedBox(width: 5), 
+                      Text(MessageCut(widget.lastMessage)),     
+                  ],
+                ),                       
+                SizedBox(height: 3),   
+                Row(
+                  children: [
+                    Icon(Icons.timelapse,size: 15,),
+                    SizedBox(width: 5), 
+                    Text(fecha),
+                    SizedBox(width: 5), 
+                    Text(formattedTime)
+                  ],
+                )  
               ],
             )
           ],
         ),
       ),
     );
+  }
+
+  String MessageCut(String lst)
+  {
+    String newMessage = "";
+    int index = lst.length > 30 ? 30 : lst.length;     
+    String adicional = index >= 30 ? "..." : ""; 
+    newMessage = lst.substring(0,index) + adicional;    
+    return newMessage;
   }
 }
